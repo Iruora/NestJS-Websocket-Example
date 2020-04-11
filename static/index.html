@@ -3,7 +3,7 @@
  <head>
      <meta charset="UTF-8">
      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <title>Document</title>
+     <title>WebSocket</title>
      <script src="http://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
      <script src="/socket.io/socket.io.js"></script>
  </head>
@@ -11,12 +11,14 @@
      <div id='v-app'>
         <h1>{{title}}</h1>
         <form>
-            <input type="text" name="message" id="" v-model="text">
-            <button type="submit" @click.prevent="sendMessage()">Send</button>
+            <input type="text" name="message" v-model="text">
+            <button type="submit" @click.prevent="sendChatMessage()">Send</button>
         </form>
         <p>
             <ul>
-                <li v-for='message of messages'>{{message}}</li>
+                <li v-for='message of messages'>
+                    <strong>{{message.sender}}: </strong>{{message.message}}
+                </li>
             </ul>
         </p>
      </div>
@@ -26,27 +28,26 @@
             data: {
                 title: 'Websocket tester',
                 text: '',
-                messages: [
-                    'some message',
-                    'another message'
-                ],
-                socket: null,
+                username: '',
+                messages: [],
+                socket: {chat: null, alerts: null},
             },
             methods: {
-                sendMessage() {
-                    console.log(`send: ${this.text}`);
-                    this.socket.emit('messageToServer', this.text);
+                sendChatMessage() {
+                    this.socket.chat.emit('chatToServer', {sender: this.username, message: this.text});
                     this.text = '';
                 },
-                receiveMessage(msg) {
-                    console.log(`recv: ${msg}`);
+                receiveChatMessage(msg) {
                     this.messages.push(msg);
                 }
             },
             created() {
-                this.socket = io('http://192.168.1.6:3000');
-                this.socket.on('messageToClient', message => {
-                    this.receiveMessage(message);
+                this.username = prompt('Enter your username : ');
+
+
+                this.socket.chat = io('http://192.168.1.6:3000/chat');
+                this.socket.chat.on('chatToClient', message => {
+                    this.receiveChatMessage(message);
                 });
             }
          });
