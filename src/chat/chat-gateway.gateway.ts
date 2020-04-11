@@ -8,7 +8,7 @@ export class ChatGateway implements OnGatewayInit{
   @WebSocketServer() wss: Server;
   
   afterInit(server: any) {
-    this.logger.log('Initialized');
+    this.logger.log('chat Initialized');
   }
   
   
