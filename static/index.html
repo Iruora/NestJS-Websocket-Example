@@ -4,7 +4,7 @@
      <meta charset="UTF-8">
      <meta name="viewport" content="width=device-width, initial-scale=1.0">
      <title>WebSocket</title>
-     <link rel="stylesheet" href="styles.scss">
+     <link rel="stylesheet" href="./styles.scss">
      <link rel="stylesheet" href="https://unpkg.com/vue-simple-notify@1.0.5/dist/vue-simple-notify.min.css">
      <script src="http://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
      <script src="https://unpkg.com/vue-simple-notify@1.0.5/dist/vue-simple-notify.min.js"></script>
@@ -21,9 +21,17 @@
                 <input type="text" name="message" v-model="text">
                 <button type="submit" @click.prevent="sendChatMessage()">Send</button>
             </form>
+            <div class="tab-row">
+                <button class="tab-btn" :class="{ active: activeRoom == 'general' }" @click="activeRoom = 'general'">General</button>
+                <button class="tab-btn" :class="{ active: activeRoom == 'typescript' }" @click="activeRoom = 'typescript'">Typescript</button>
+                <button class="tab-btn" :class="{ active: activeRoom == 'nestjs' }" @click="activeRoom = 'nestjs'">NestJS</button>
+            </div>
+            <div class="tab-row">
+                Status: {{ isMemberOfActiveRoom ? 'Joined' : 'Not Joined'}} <button @click="toggleRoomMembership()">{{ isMemberOfActiveRoom ? 'Leave' : 'Join'}}</button>
+            </div>
             <p>
                 <ul>
-                    <li v-for='message of messages'>
+                    <li v-for='message of messages[activeRoom]'>
                         <strong>{{message.sender}}: </strong>{{message.message}}
                     </li>
                 </ul>
@@ -38,20 +46,42 @@
                 title: 'Websocket tester',
                 text: '',
                 username: '',
-                messages: [],
+                messages: {
+                    general: [],
+                    typescript: [],
+                    nestjs: [],
+                },
+                rooms: {
+                    general: false,
+                    typescript: false,
+                    nestjs: false,
+                },
+                activeRoom: 'general',
                 alerts: [],
                 socket: {chat: null, alerts: null},
             },
             methods: {
                 sendChatMessage() {
-                    this.socket.chat.emit('chatToServer', {sender: this.username, message: this.text});
-                    this.text = '';
+                    if (this.isMemberOfActiveRoom) {
+                        this.socket.chat.emit('chatToServer', {sender: this.username, message: this.text, room: this.activeRoom});
+                        this.text = '';
+                    } else {
+                        alert('you must be a member of the active room to send messages !');
+                    }
                 },
                 receiveChatMessage(msg) {
-                    this.messages.push(msg);
+                    this.messages[msg.room].push(msg);
                 },
                 receiveAlertMessage(msg) {
                     this.alerts.push(msg);
+                },
+                toggleRoomMembership() {
+                    this.socket.chat.emit(`${this.isMemberOfActiveRoom ? 'leaveRoom' : 'joinRoom'}`, this.activeRoom);
+                }
+            },
+            computed: {
+                isMemberOfActiveRoom() {
+                    return this.rooms[this.activeRoom];
                 }
             },
             created() {
@@ -62,7 +92,18 @@
                 this.socket.chat.on('chatToClient', message => {
                     this.receiveChatMessage(message);
                 });
-                
+                this.socket.chat.on('connect', () => {
+                    this.toggleRoomMembership();
+                });
+
+                this.socket.chat.on('joinedRoom', room => {
+                    this.rooms[room] = true;
+                });
+
+                this.socket.chat.on('leftRoom', room => {
+                    this.rooms[room] = false;
+                });
+
                 this.socket.alerts = io('http://192.168.1.6:3000/alert');
                 this.socket.alerts.on('alertToClient', message => {
                     this.receiveAlertMessage(message);
